@@ -82,7 +82,7 @@ postgres:
 
 backend:
   image:
-    repository: livingwooods/mercurius-backend
+    repository: ghcr.io/mercuriusaalst/mercurius-backend
     tag: "0.5.2"
     pullPolicy: IfNotPresent
   # Empty: use the CloudNativePG cluster this chart creates. Set it to an
@@ -122,7 +122,7 @@ backend:
 
 frontend:
   image:
-    repository: livingwooods/mercurius-frontend
+    repository: ghcr.io/mercuriusaalst/mercurius-frontend
     tag: "0.4.0"
     pullPolicy: IfNotPresent
   resources:

@@ -69,6 +69,14 @@ needs more than a bigger `replicas` — RWX plus a SignalR backplane for the
 backend, sticky sessions at the tunnel for the frontend. The field is absent
 rather than present-and-misleading.
 
+**The images live on GHCR.** `ghcr.io/mercuriusaalst/mercurius-{backend,frontend}`,
+pushed by each app repo with its own `GITHUB_TOKEN`. GHCR packages are
+**private by default** even when the source repo is public, and a private
+package means `ImagePullBackOff` with no useful message in the pod events.
+Either set each package's visibility to public once, under the org's Packages
+settings, or set `imagePullSecrets` to a `kubernetes.io/dockerconfigjson`
+Secret. The chart creates no pull secret of its own.
+
 **Probes are TCP, not HTTP.** Neither app exposes a health endpoint. A TCP
 probe proves Kestrel is listening, not that the app works — it will happily
 report ready with a dead database. Add `/health` to the backend and swap the

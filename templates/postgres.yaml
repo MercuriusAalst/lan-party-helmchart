@@ -36,7 +36,7 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 {{- end }}
-{{- if .Values.postgres.backup.enabled }}
+{{- if and .Values.postgres.enabled .Values.postgres.backup.enabled }}
 {{- $b := .Values.postgres.backup }}
 ---
 apiVersion: barmancloud.cnpg.io/v1

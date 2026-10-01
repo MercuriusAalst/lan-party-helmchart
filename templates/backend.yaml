@@ -78,6 +78,11 @@ spec:
               containerPort: 8080
               protocol: TCP
           env:
+            # Program.cs calls UseTransportSecurity -> UseHttpsRedirection. The
+            # tunnel terminates TLS and forwards plain HTTP, so without this the
+            # app redirects to itself forever. Honours X-Forwarded-Proto instead.
+            - name: ASPNETCORE_FORWARDEDHEADERS_ENABLED
+              value: "true"
             # Npgsql wants a keyword connection string; the CloudNativePG secret
             # only offers a postgresql:// URI, so assemble it from the parts.
             # Kubernetes substitutes $(VAR) from env entries declared above it.
@@ -100,13 +105,25 @@ spec:
             - name: {{ $k | quote }}
               value: {{ $v | quote }}
             {{- end }}
-          {{- if .Values.externalSecrets.backend }}
-          envFrom:
-            - secretRef:
-                name: {{ $fullName }}-backend
-          {{- end }}
+            # Explicit entries, never envFrom: Kubernetes validates envFrom keys
+            # as strict C identifiers and silently drops the rest, which would
+            # throw away every Mercurius.LAN.API_ name here. env[].name uses the
+            # relaxed rule that allows dots.
+            {{- range .Values.externalSecrets.backend }}
+            - name: {{ .envVar | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $fullName }}-backend
+                  key: {{ .envVar | quote }}
+            {{- end }}
           # TCP probes: neither app exposes a health endpoint yet. Swap these for
-          # httpGet /health once one does.
+          # httpGet /health once one does. Kestrel binds only after
+          # ApplyMigrations() returns, so startupProbe is what buys migrations
+          # time without livenessProbe killing the pod half way through.
+          startupProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 10
+            failureThreshold: 30
           readinessProbe:
             tcpSocket: { port: http }
             initialDelaySeconds: 10

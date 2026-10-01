@@ -66,11 +66,19 @@ spec:
             - name: {{ $k | quote }}
               value: {{ $v | quote }}
             {{- end }}
-          {{- if .Values.externalSecrets.frontend }}
-          envFrom:
-            - secretRef:
-                name: {{ $fullName }}-frontend
-          {{- end }}
+            # Explicit entries rather than envFrom, matching the backend: see
+            # the comment there for why envFrom cannot carry these names.
+            {{- range .Values.externalSecrets.frontend }}
+            - name: {{ .envVar | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $fullName }}-frontend
+                  key: {{ .envVar | quote }}
+            {{- end }}
+          startupProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 5
+            failureThreshold: 24
           readinessProbe:
             tcpSocket: { port: http }
             initialDelaySeconds: 10
