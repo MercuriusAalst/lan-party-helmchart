@@ -7,7 +7,7 @@ CloudNativePG database. Installed once per environment by ArgoCD from the
 Published as an OCI chart on every release:
 
 ```
-oci://registry-1.docker.io/livingwooods/lan-party
+oci://ghcr.io/mercuriusaalst/charts/lan-party
 ```
 
 ## What it does not do

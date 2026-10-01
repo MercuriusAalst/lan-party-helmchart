@@ -8,8 +8,8 @@ on:
 
 env:
   CHART_NAME: lan-party
-  OCI_REGISTRY: registry-1.docker.io
-  OCI_NAMESPACE: livingwooods
+  OCI_REGISTRY: ghcr.io
+  OCI_NAMESPACE: mercuriusaalst/charts
 
 permissions:
   contents: read
@@ -41,6 +41,9 @@ jobs:
     runs-on: ubuntu-24.04
     name: Package, Push and Announce Chart
     needs: release-please
+    permissions:
+      contents: read
+      packages: write
     if: ${{ needs.release-please.outputs.RELEASE_CREATED }}
     env:
       VERSION: ${{ needs.release-please.outputs.VERSION }}
@@ -54,8 +57,8 @@ jobs:
       - name: Push chart
         run: |
           helm registry login "$OCI_REGISTRY" \
-            --username "${{ secrets.DOCKERHUB_USERNAME }}" \
-            --password "${{ secrets.DOCKERHUB_TOKEN }}"
+            --username "${{ github.actor }}" \
+            --password "${{ secrets.GITHUB_TOKEN }}"
           helm push "${CHART_NAME}-${VERSION}.tgz" "oci://${OCI_REGISTRY}/${OCI_NAMESPACE}"
 
       - name: Announce to gitops
