@@ -1,0 +1,157 @@
+{{- $fullName := include "lan-party.fullname" . -}}
+{{- $dbSecret := .Values.backend.database.existingSecret | default (printf "%s-db-app" $fullName) -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $fullName }}-backend-media
+  labels:
+    {{- include "lan-party.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+  annotations:
+    # Uploaded media must survive a release being deleted.
+    helm.sh/resource-policy: keep
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ .Values.backend.storage.size }}
+  {{- with .Values.backend.storage.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}-backend
+  labels:
+    {{- include "lan-party.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "lan-party.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}-backend
+  labels:
+    {{- include "lan-party.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  # One replica, deliberately: the media volume is ReadWriteOnce and the
+  # SignalR hub holds in-memory connection state. Scaling out needs RWX plus a
+  # SignalR backplane first.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "lan-party.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        {{- include "lan-party.labels" . | nindent 8 }}
+        app.kubernetes.io/component: backend
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ required "backend.image.tag is required" .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            # Program.cs calls UseTransportSecurity -> UseHttpsRedirection. The
+            # tunnel terminates TLS and forwards plain HTTP, so without this the
+            # app redirects to itself forever. Honours X-Forwarded-Proto instead.
+            - name: ASPNETCORE_FORWARDEDHEADERS_ENABLED
+              value: "true"
+            # Npgsql wants a keyword connection string; the CloudNativePG secret
+            # only offers a postgresql:// URI, so assemble it from the parts.
+            # Kubernetes substitutes $(VAR) from env entries declared above it.
+            - name: DB_HOST
+              valueFrom: { secretKeyRef: { name: {{ $dbSecret }}, key: host } }
+            - name: DB_PORT
+              valueFrom: { secretKeyRef: { name: {{ $dbSecret }}, key: port } }
+            - name: DB_NAME
+              valueFrom: { secretKeyRef: { name: {{ $dbSecret }}, key: dbname } }
+            - name: DB_USER
+              valueFrom: { secretKeyRef: { name: {{ $dbSecret }}, key: username } }
+            - name: DB_PASS
+              valueFrom: { secretKeyRef: { name: {{ $dbSecret }}, key: password } }
+            - name: Mercurius.LAN.API_ConnectionStrings__MercuriusDB
+              value: "Host=$(DB_HOST);Port=$(DB_PORT);Database=$(DB_NAME);Username=$(DB_USER);Password=$(DB_PASS)"
+            # Derived from the mount so the two cannot drift apart.
+            - name: Mercurius.LAN.API_FileStorage__Location
+              value: {{ .Values.backend.storage.mountPath | quote }}
+            {{- range $k, $v := .Values.backend.config }}
+            - name: {{ $k | quote }}
+              value: {{ $v | quote }}
+            {{- end }}
+            # Explicit entries, never envFrom: Kubernetes validates envFrom keys
+            # as strict C identifiers and silently drops the rest, which would
+            # throw away every Mercurius.LAN.API_ name here. env[].name uses the
+            # relaxed rule that allows dots.
+            {{- range .Values.externalSecrets.backend }}
+            - name: {{ .envVar | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $fullName }}-backend
+                  key: {{ .envVar | quote }}
+            {{- end }}
+          # TCP probes: neither app exposes a health endpoint yet. Swap these for
+          # httpGet /health once one does. Kestrel binds only after
+          # ApplyMigrations() returns, so startupProbe is what buys migrations
+          # time without livenessProbe killing the pod half way through.
+          startupProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          volumeMounts:
+            - name: media
+              mountPath: {{ .Values.backend.storage.mountPath }}
+          {{- with .Values.backend.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: media
+          persistentVolumeClaim:
+            claimName: {{ $fullName }}-backend-media
+      {{- with .Values.backend.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

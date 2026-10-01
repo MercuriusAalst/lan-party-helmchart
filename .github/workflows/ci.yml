@@ -1,0 +1,27 @@
+---
+name: Continuous Integration
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    name: Lint and Render Chart
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint chart
+        run: helm lint . --values ci/lint-values.yaml
+
+      - name: Render chart
+        run: helm template lan-party . --values ci/lint-values.yaml > /dev/null
+
+      - name: Render chart with backups enabled
+        run: helm template lan-party . --values ci/backup-values.yaml > /dev/null
