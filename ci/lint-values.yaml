@@ -1,0 +1,6 @@
+# Minimum values that make the chart render. CI lints and templates against
+# this, so a template that starts depending on a new required value fails here
+# rather than in the cluster.
+externalSecrets:
+  secretStore:
+    name: lint

@@ -1,0 +1,130 @@
+nameOverride: ""
+fullnameOverride: ""
+
+imagePullSecrets: []
+
+# Public hostnames. Nothing in this chart serves them - your Cloudflare Tunnel
+# routes them to the two ClusterIP services. They are here because the apps need
+# to know their own public URLs (Auth0 callbacks, browser-facing image URLs).
+hosts:
+  frontend: lan.mercurius-aalst.be
+  backend: api.mercurius-aalst.be
+
+externalSecrets:
+  secretStore:
+    name: "" # required
+    kind: ClusterSecretStore
+  refreshInterval: 1h
+  # envVar becomes both the Secret data key and the container env var name.
+  backend:
+    - envVar: Mercurius.LAN.API_Auth0__ManagementClientId
+      key: mercurius/auth0
+      property: management_client_id
+    - envVar: Mercurius.LAN.API_Auth0__ManagementClientSecret
+      key: mercurius/auth0
+      property: management_client_secret
+    - envVar: Mercurius.LAN.API_Auth0__PasswordResetClientId
+      key: mercurius/auth0
+      property: password_reset_client_id
+  frontend:
+    - envVar: Auth0__ClientId
+      key: mercurius/auth0
+      property: web_client_id
+    - envVar: Auth0__ClientSecret
+      key: mercurius/auth0
+      property: web_client_secret
+    - envVar: ContactEmail__Username
+      key: mercurius/smtp
+      property: username
+    - envVar: ContactEmail__Password
+      key: mercurius/smtp
+      property: password
+
+postgres:
+  enabled: true
+  instances: 1
+  database: mercurius
+  owner: mercurius
+  storage:
+    size: 10Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
+backend:
+  image:
+    repository: livingwooods/mercurius-backend
+    tag: "0.5.2"
+    pullPolicy: IfNotPresent
+  # Empty: use the CloudNativePG cluster this chart creates. Set it to an
+  # existing Secret carrying host/port/dbname/username/password to point the
+  # backend at a database outside this release (postgres.enabled: false).
+  database:
+    existingSecret: ""
+  # Uploaded media, served back through Imageflow at /images.
+  # RWO: see the single-replica note in the README before raising this.
+  storage:
+    size: 5Gi
+    storageClass: ""
+    mountPath: /data/images
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1654
+    fsGroup: 1654
+  # Every key below also exists in the image's appsettings.json, which Program.cs
+  # re-adds AFTER the default env provider. Only the prefixed provider wins, so
+  # these must keep the Mercurius.LAN.API_ prefix. See README.
+  config:
+    Mercurius.LAN.API_Auth0__Audience: https://api.mercurius-aalst.be
+    Mercurius.LAN.API_Auth0__Authority: https://mercurius-aalst.eu.auth0.com/
+    Mercurius.LAN.API_Auth0__RoleClaimType: https://mercurius-aalst.be/roles
+    Mercurius.LAN.API_Auth0__ManagementAudience: https://mercurius-aalst.eu.auth0.com/api/v2/
+    Mercurius.LAN.API_Auth0__DatabaseConnection: Username-Password-Authentication
+    Mercurius.LAN.API_FileStorage__MaxFileSizeInMB: "5"
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+frontend:
+  image:
+    repository: livingwooods/mercurius-frontend
+    tag: "0.4.0"
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  # The frontend image has no USER instruction, so it runs as root. Add
+  # `USER $APP_UID` to its Dockerfile, then uncomment:
+  # podSecurityContext:
+  #   runAsNonRoot: true
+  #   runAsUser: 1654
+  podSecurityContext: {}
+  config:
+    Auth0__Domain: mercurius-aalst.eu.auth0.com
+    Auth0__Audience: https://api.mercurius-aalst.be
+    Auth0__Scope: openid profile email
+    Auth0__RoleClaimType: https://mercurius-aalst.be/roles
+    Auth0__UseRefreshTokens: "false"
+    ContactEmail__Enabled: "true"
+    ContactEmail__Host: mail.mercurius-aalst.be
+    ContactEmail__Port: "587"
+    ContactEmail__EnableSsl: "true"
+    ContactEmail__SenderEmail: lan+contact@mercurius-aalst.be
+    ContactEmail__SenderName: Mercurius LAN website
+    ContactEmail__RecipientEmail: lan@mercurius-aalst.be
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}

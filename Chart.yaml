@@ -1,0 +1,8 @@
+apiVersion: v2
+name: lan-party
+description: Mercurius LAN party backend, frontend and CloudNativePG database
+type: application
+version: 0.1.0 # x-release-please-version
+home: https://github.com/MercuriusAalst/lan-party-helmchart
+maintainers:
+  - name: Mercurius Aalst

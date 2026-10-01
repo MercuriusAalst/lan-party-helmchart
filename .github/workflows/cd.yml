@@ -1,0 +1,67 @@
+---
+name: Continuous Delivery
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  CHART_NAME: lan-party
+  OCI_REGISTRY: registry-1.docker.io
+  OCI_NAMESPACE: livingwooods
+
+permissions:
+  contents: read
+
+jobs:
+  release-please:
+    runs-on: ubuntu-24.04
+    name: Calculate SemVersion and Create Release
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Release Please
+        uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+    outputs:
+      VERSION: "${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}"
+      RELEASE_CREATED: ${{ steps.release.outputs.release_created }}
+
+  publish-chart:
+    runs-on: ubuntu-24.04
+    name: Package, Push and Announce Chart
+    needs: release-please
+    if: ${{ needs.release-please.outputs.RELEASE_CREATED }}
+    env:
+      VERSION: ${{ needs.release-please.outputs.VERSION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Package chart
+        run: helm package . --version "$VERSION" --app-version "$VERSION"
+
+      - name: Push chart
+        run: |
+          helm registry login "$OCI_REGISTRY" \
+            --username "${{ secrets.DOCKERHUB_USERNAME }}" \
+            --password "${{ secrets.DOCKERHUB_TOKEN }}"
+          helm push "${CHART_NAME}-${VERSION}.tgz" "oci://${OCI_REGISTRY}/${OCI_NAMESPACE}"
+
+      - name: Announce to gitops
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GITOPS_DISPATCH_TOKEN }}
+          repository: MercuriusAalst/gitops
+          event-type: new-chart
+          client-payload: '{"version":"${{ env.VERSION }}"}'
