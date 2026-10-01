@@ -26,6 +26,10 @@ externalSecrets:
     - envVar: Mercurius.LAN.API_Auth0__PasswordResetClientId
       key: mercurius/auth0
       property: password_reset_client_id
+  # Only needed when postgres.backup.enabled. Despite the field name, envVar is
+  # just the Secret data key here - nothing mounts these as environment
+  # variables; the ObjectStore reads the Secret directly.
+  postgres: []
   frontend:
     - envVar: Auth0__ClientId
       key: mercurius/auth0
@@ -42,6 +46,27 @@ externalSecrets:
 
 postgres:
   enabled: true
+  # Barman Cloud, through the CloudNativePG plugin installed by the gitops
+  # repo's core/barman-cloud Application. Off by default: it needs a bucket and
+  # credentials that only an environment can supply.
+  backup:
+    enabled: false
+    # s3://bucket/path, or the equivalent for your provider.
+    destinationPath: ""
+    # Leave empty for AWS S3; set it for R2, MinIO, Backblaze and friends.
+    endpointURL: ""
+    # Defaults to the Secret rendered from externalSecrets.postgres below.
+    credentialsSecret: ""
+    accessKeyIdKey: ACCESS_KEY_ID
+    secretAccessKeyKey: ACCESS_SECRET_KEY
+    # The folder inside the bucket. Defaults to <release>-db. Keep it stable
+    # across a cluster rebuild or the old history becomes unreachable.
+    serverName: ""
+    retentionPolicy: 30d
+    wal:
+      compression: gzip
+    data:
+      compression: gzip
   instances: 1
   database: mercurius
   owner: mercurius

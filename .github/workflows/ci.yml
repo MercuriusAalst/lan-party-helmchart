@@ -22,3 +22,6 @@ jobs:
 
       - name: Render chart
         run: helm template lan-party . --values ci/lint-values.yaml > /dev/null
+
+      - name: Render chart with backups enabled
+        run: helm template lan-party . --values ci/backup-values.yaml > /dev/null

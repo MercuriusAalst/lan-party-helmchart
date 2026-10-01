@@ -22,6 +22,38 @@ callbacks, browser-facing image URLs) — nothing in this chart serves them.
 `externalSecrets.frontend`; the values there are references, never values.
 `externalSecrets.secretStore.name` is required.
 
+## Backups
+
+Off by default. Turn them on per environment:
+
+```yaml
+postgres:
+  backup:
+    enabled: true
+    destinationPath: s3://mercurius-backups/prd
+    endpointURL: https://<account>.r2.cloudflarestorage.com  # omit for AWS S3
+externalSecrets:
+  postgres:
+    - envVar: ACCESS_KEY_ID
+      key: mercurius/s3
+      property: access_key_id
+    - envVar: ACCESS_SECRET_KEY
+      key: mercurius/s3
+      property: secret_access_key
+```
+
+That renders a Barman Cloud `ObjectStore` and attaches the plugin to the
+database as a WAL archiver. The plugin itself is installed cluster-wide by the
+gitops repo's `core/barman-cloud` Application — this chart only configures it.
+
+`serverName` is the folder inside the bucket and defaults to `<release>-db`.
+It lives on the Cluster's plugin parameters, not on the ObjectStore, which
+rejects it. Changing it starts a fresh history and leaves the old one
+unreachable, so leave it alone once backups exist.
+
+Enabling backups does not by itself prove restores work. Nothing here tests
+that; a restore drill is still a thing someone has to do.
+
 ## Things that will bite you
 
 **The backend env var prefix.** `Program.cs` re-adds `appsettings.json` *after*
