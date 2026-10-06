@@ -6,11 +6,9 @@ externalSecrets:
     name: lint
   postgres:
     - envVar: ACCESS_KEY_ID
-      key: lint/s3
-      property: access_key_id
+      key: S3_ACCESS_KEY_ID
     - envVar: ACCESS_SECRET_KEY
-      key: lint/s3
-      property: secret_access_key
+      key: S3_SECRET_ACCESS_KEY
 
 postgres:
   backup:

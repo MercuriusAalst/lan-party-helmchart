@@ -35,11 +35,9 @@ postgres:
 externalSecrets:
   postgres:
     - envVar: ACCESS_KEY_ID
-      key: mercurius/s3
-      property: access_key_id
+      key: S3_ACCESS_KEY_ID
     - envVar: ACCESS_SECRET_KEY
-      key: mercurius/s3
-      property: secret_access_key
+      key: S3_SECRET_ACCESS_KEY
 ```
 
 That renders a Barman Cloud `ObjectStore` and attaches the plugin to the

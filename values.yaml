@@ -16,33 +16,28 @@ externalSecrets:
     kind: ClusterSecretStore
   refreshInterval: 1h
   # envVar becomes both the Secret data key and the container env var name.
+  # key is the secret's name in the store. With Infisical, a key containing '/'
+  # is read as a folder path and must then start with '/'.
   backend:
     - envVar: Mercurius.LAN.API_Auth0__ManagementClientId
-      key: mercurius/auth0
-      property: management_client_id
+      key: AUTH0_MANAGEMENT_CLIENT_ID
     - envVar: Mercurius.LAN.API_Auth0__ManagementClientSecret
-      key: mercurius/auth0
-      property: management_client_secret
+      key: AUTH0_MANAGEMENT_CLIENT_SECRET
     - envVar: Mercurius.LAN.API_Auth0__PasswordResetClientId
-      key: mercurius/auth0
-      property: password_reset_client_id
+      key: AUTH0_PASSWORD_RESET_CLIENT_ID
   # Only needed when postgres.backup.enabled. Despite the field name, envVar is
   # just the Secret data key here - nothing mounts these as environment
   # variables; the ObjectStore reads the Secret directly.
   postgres: []
   frontend:
     - envVar: Auth0__ClientId
-      key: mercurius/auth0
-      property: web_client_id
+      key: AUTH0_WEB_CLIENT_ID
     - envVar: Auth0__ClientSecret
-      key: mercurius/auth0
-      property: web_client_secret
+      key: AUTH0_WEB_CLIENT_SECRET
     - envVar: ContactEmail__Username
-      key: mercurius/smtp
-      property: username
+      key: SMTP_USERNAME
     - envVar: ContactEmail__Password
-      key: mercurius/smtp
-      property: password
+      key: SMTP_PASSWORD
 
 postgres:
   enabled: true
