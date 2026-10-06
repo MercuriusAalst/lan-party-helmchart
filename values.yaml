@@ -7,8 +7,8 @@ imagePullSecrets: []
 # routes them to the two ClusterIP services. They are here because the apps need
 # to know their own public URLs (Auth0 callbacks, browser-facing image URLs).
 hosts:
-  frontend: lan.mercurius-aalst.be
-  backend: api.mercurius-aalst.be
+  frontend: PLACEHOLDER_FRONTEND_HOST
+  backend: PLACEHOLDER_BACKEND_HOST
 
 externalSecrets:
   secretStore:
@@ -105,8 +105,8 @@ backend:
   # re-adds AFTER the default env provider. Only the prefixed provider wins, so
   # these must keep the Mercurius.LAN.API_ prefix. See README.
   config:
-    Mercurius.LAN.API_Auth0__Audience: https://api.mercurius-aalst.be
-    Mercurius.LAN.API_Auth0__Authority: https://mercurius-aalst.eu.auth0.com/
+    Mercurius.LAN.API_Auth0__Audience: PLACEHOLDER_AUDIENCE
+    Mercurius.LAN.API_Auth0__Authority: https://auth.mercurius-aalst.be/
     Mercurius.LAN.API_Auth0__RoleClaimType: https://mercurius-aalst.be/roles
     Mercurius.LAN.API_Auth0__ManagementAudience: https://mercurius-aalst.eu.auth0.com/api/v2/
     Mercurius.LAN.API_Auth0__DatabaseConnection: Username-Password-Authentication
@@ -133,8 +133,8 @@ frontend:
   #   runAsUser: 1654
   podSecurityContext: {}
   config:
-    Auth0__Domain: mercurius-aalst.eu.auth0.com
-    Auth0__Audience: https://api.mercurius-aalst.be
+    Auth0__Domain: auth.mercurius-aalst.be
+    Auth0__Audience: PLACEHOLDER_AUDIENCE
     Auth0__Scope: openid profile email
     Auth0__RoleClaimType: https://mercurius-aalst.be/roles
     Auth0__UseRefreshTokens: "false"
