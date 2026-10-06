@@ -1,4 +1,4 @@
-# Same as lint-values, with backups on, so CI renders the ObjectStore and the
+# Layer over lint-values, with backups on, so CI renders the ObjectStore and the
 # Cluster's plugin block too. Without this the whole backup path would only
 # ever be exercised in production.
 externalSecrets:

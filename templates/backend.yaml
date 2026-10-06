@@ -1,3 +1,4 @@
+{{- $_ := required "backend.config[\"Mercurius.LAN.API_Auth0__Audience\"] is required" (index .Values.backend.config "Mercurius.LAN.API_Auth0__Audience") -}}
 {{- $fullName := include "lan-party.fullname" . -}}
 {{- $dbSecret := .Values.backend.database.existingSecret | default (printf "%s-db-app" $fullName) -}}
 apiVersion: v1
