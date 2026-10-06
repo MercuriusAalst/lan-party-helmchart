@@ -1,0 +1,70 @@
+{{- if .Values.postgres.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ include "lan-party.fullname" . }}-db
+  labels:
+    {{- include "lan-party.labels" . | nindent 4 }}
+    app.kubernetes.io/component: database
+  annotations:
+    # Deleting the release must not delete the database.
+    helm.sh/resource-policy: keep
+spec:
+  instances: {{ .Values.postgres.instances }}
+  storage:
+    size: {{ .Values.postgres.storage.size }}
+    {{- with .Values.postgres.storage.storageClass }}
+    storageClass: {{ . }}
+    {{- end }}
+  bootstrap:
+    initdb:
+      database: {{ .Values.postgres.database }}
+      owner: {{ .Values.postgres.owner }}
+  {{- if .Values.postgres.backup.enabled }}
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: {{ include "lan-party.fullname" . }}-backup
+        # serverName belongs here, not on the ObjectStore: the CRD rejects it
+        # there. It is the folder name inside the bucket, so keeping it stable
+        # across a cluster rebuild is what makes the history restorable.
+        serverName: {{ .Values.postgres.backup.serverName | default (printf "%s-db" (include "lan-party.fullname" .)) }}
+  {{- end }}
+  {{- with .Values.postgres.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- if and .Values.postgres.enabled .Values.postgres.backup.enabled }}
+{{- $b := .Values.postgres.backup }}
+---
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: {{ include "lan-party.fullname" . }}-backup
+  labels:
+    {{- include "lan-party.labels" . | nindent 4 }}
+    app.kubernetes.io/component: database
+  annotations:
+    # Losing this would orphan the backups it points at.
+    helm.sh/resource-policy: keep
+spec:
+  configuration:
+    destinationPath: {{ required "postgres.backup.destinationPath is required when backups are enabled" $b.destinationPath }}
+    {{- with $b.endpointURL }}
+    endpointURL: {{ . }}
+    {{- end }}
+    s3Credentials:
+      accessKeyId:
+        name: {{ $b.credentialsSecret | default (printf "%s-postgres" (include "lan-party.fullname" .)) }}
+        key: {{ $b.accessKeyIdKey }}
+      secretAccessKey:
+        name: {{ $b.credentialsSecret | default (printf "%s-postgres" (include "lan-party.fullname" .)) }}
+        key: {{ $b.secretAccessKeyKey }}
+    wal:
+      compression: {{ $b.wal.compression }}
+    data:
+      compression: {{ $b.data.compression }}
+  retentionPolicy: {{ $b.retentionPolicy | quote }}
+{{- end }}
