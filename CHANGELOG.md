@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0](https://github.com/MercuriusAalst/lan-party-helmchart/compare/lan-party-v1.0.1...lan-party-v2.0.0) (2026-10-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* update values.yaml with placeholders for env specific data ([#5](https://github.com/MercuriusAalst/lan-party-helmchart/issues/5))
+
+### Features
+
+* update values.yaml with placeholders for env specific data ([#5](https://github.com/MercuriusAalst/lan-party-helmchart/issues/5)) ([e45f89e](https://github.com/MercuriusAalst/lan-party-helmchart/commit/e45f89e8d15b7d1b701dc4cd27597943fc4af678))
+
 ## [1.0.1](https://github.com/MercuriusAalst/lan-party-helmchart/compare/lan-party-v1.0.0...lan-party-v1.0.1) (2026-10-06)
 
 
