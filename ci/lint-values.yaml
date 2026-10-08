@@ -1,6 +1,18 @@
 # Minimum values that make the chart render. CI lints and templates against
 # this, so a template that starts depending on a new required value fails here
 # rather than in the cluster.
+hosts:
+  frontend: frontend.example.com
+  backend: backend.example.com
+
+backend:
+  config:
+    Mercurius.LAN.API_Auth0__Audience: https://api.example.com
+
+frontend:
+  config:
+    Auth0__Audience: https://api.example.com
+
 externalSecrets:
   secretStore:
     name: lint

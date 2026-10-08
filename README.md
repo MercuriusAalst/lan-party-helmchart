@@ -22,6 +22,29 @@ callbacks, browser-facing image URLs) — nothing in this chart serves them.
 `externalSecrets.frontend`; the values there are references, never values.
 `externalSecrets.secretStore.name` is required.
 
+## Required environment values
+
+Supply these values in each environment's GitOps configuration before installing
+or upgrading the chart:
+
+```yaml
+hosts:
+  frontend: frontend.example.com
+  backend: backend.example.com
+backend:
+  config:
+    Mercurius.LAN.API_Auth0__Audience: https://api.example.com
+frontend:
+  config:
+    Auth0__Audience: https://api.example.com
+```
+
+Use your public hostnames and configured Auth0 API audience. These four settings
+default to empty strings; rendering fails with the missing setting's name.
+Releases that relied on the previous defaults must add these overrides before
+upgrading. `hosts.frontend` remains required as part of the environment contract,
+although no current template consumes it.
+
 ## Backups
 
 Off by default. Turn them on per environment:
@@ -89,10 +112,12 @@ leaves the data behind. Deleting them is a deliberate, manual act.
 ```sh
 helm lint . --values ci/lint-values.yaml
 helm template lan-party . --values ci/lint-values.yaml
+helm template lan-party . --values ci/lint-values.yaml --values ci/backup-values.yaml
 ```
 
-`ci/lint-values.yaml` is the minimum that renders. CI runs both on every PR, so
-a template that grows a new required value fails there rather than in-cluster.
+`ci/lint-values.yaml` is the minimum that renders. The backup fixture layers over
+it. CI also checks that missing, empty, and null environment values fail during
+rendering, and that valid values appear in the deployments without placeholders.
 
 ## Releasing
 

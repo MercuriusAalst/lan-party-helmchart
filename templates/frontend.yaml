@@ -1,3 +1,6 @@
+{{- $_ := required "hosts.frontend is required" .Values.hosts.frontend -}}
+{{- $_ := required "hosts.backend is required" .Values.hosts.backend -}}
+{{- $_ := required "frontend.config.Auth0__Audience is required" .Values.frontend.config.Auth0__Audience -}}
 {{- $fullName := include "lan-party.fullname" . -}}
 apiVersion: v1
 kind: Service

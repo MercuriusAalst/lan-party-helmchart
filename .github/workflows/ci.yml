@@ -21,7 +21,44 @@ jobs:
         run: helm lint . --values ci/lint-values.yaml
 
       - name: Render chart
-        run: helm template lan-party . --values ci/lint-values.yaml > /dev/null
+        run: |
+          rendered=$(helm template lan-party . --values ci/lint-values.yaml)
+          grep -Fq 'value: "https://backend.example.com/"' <<< "$rendered"
+          for key in Auth0__Audience Mercurius.LAN.API_Auth0__Audience; do
+            grep -A 1 -F "name: \"$key\"" <<< "$rendered" | grep -Fq 'value: "https://api.example.com"'
+          done
+          if grep -Fq 'PLACEHOLDER_' <<< "$rendered"; then
+            echo "Rendered chart contains a placeholder"
+            exit 1
+          fi
+
+      - name: Reject missing environment values
+        run: |
+          if helm template lan-party . --set externalSecrets.secretStore.name=lint > /dev/null 2>&1; then
+            echo "Rendering without environment values must fail"
+            exit 1
+          fi
+          keys=(
+            'hosts.frontend'
+            'hosts.backend'
+            'frontend.config.Auth0__Audience'
+            'backend.config.Mercurius\.LAN\.API_Auth0__Audience'
+          )
+          errors=(
+            'hosts.frontend is required'
+            'hosts.backend is required'
+            'frontend.config.Auth0__Audience is required'
+            'backend.config["Mercurius.LAN.API_Auth0__Audience"] is required'
+          )
+          for i in "${!keys[@]}"; do
+            for value in '' null; do
+              if output=$(helm template lan-party . --values ci/lint-values.yaml --set "${keys[$i]}=$value" 2>&1); then
+                echo "Rendering must reject ${keys[$i]}=$value"
+                exit 1
+              fi
+              grep -Fq "${errors[$i]}" <<< "$output"
+            done
+          done
 
       - name: Render chart with backups enabled
-        run: helm template lan-party . --values ci/backup-values.yaml > /dev/null
+        run: helm template lan-party . --values ci/lint-values.yaml --values ci/backup-values.yaml > /dev/null
