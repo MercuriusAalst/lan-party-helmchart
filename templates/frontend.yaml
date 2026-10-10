@@ -1,4 +1,19 @@
 {{- $fullName := include "lan-party.fullname" . -}}
+# Data Protection keys: they encrypt the auth cookie, so losing them on a
+# restart signs every user out. Not kept on uninstall: that only costs a login.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $fullName }}-frontend-keys
+  labels:
+    {{- include "lan-party.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 16Mi
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -24,10 +39,19 @@ metadata:
   labels:
     {{- include "lan-party.labels" . | nindent 4 }}
     app.kubernetes.io/component: frontend
+  annotations:
+    # See the backend Deployment.
+    reloader.stakater.com/auto: "true"
 spec:
   # One replica: Blazor Server holds a per-user circuit in memory, so a second
   # replica needs sticky sessions at the tunnel before it helps anyone.
   replicas: 1
+  # Explicit, matching the backend: the new pod is ready before the old one goes.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       {{- include "lan-party.selectorLabels" . | nindent 6 }}
@@ -60,6 +84,8 @@ spec:
             # forever. Honours X-Forwarded-Proto instead.
             - name: ASPNETCORE_FORWARDEDHEADERS_ENABLED
               value: "true"
+            - name: DataProtection__KeysPath
+              value: /data/keys
             - name: MercuriusAPI__BaseAddress
               value: "https://{{ .Values.hosts.backend }}/"
             {{- range $k, $v := .Values.frontend.config }}
@@ -75,6 +101,10 @@ spec:
                   name: {{ $fullName }}-frontend
                   key: {{ .envVar | quote }}
             {{- end }}
+          # See the backend Deployment.
+          lifecycle:
+            preStop:
+              sleep: { seconds: 5 }
           startupProbe:
             tcpSocket: { port: http }
             periodSeconds: 5
@@ -87,10 +117,17 @@ spec:
             tcpSocket: { port: http }
             initialDelaySeconds: 30
             periodSeconds: 20
+          volumeMounts:
+            - name: keys
+              mountPath: /data/keys
           {{- with .Values.frontend.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+      volumes:
+        - name: keys
+          persistentVolumeClaim:
+            claimName: {{ $fullName }}-frontend-keys
       {{- with .Values.frontend.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
