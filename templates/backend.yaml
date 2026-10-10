@@ -45,13 +45,25 @@ metadata:
   labels:
     {{- include "lan-party.labels" . | nindent 4 }}
     app.kubernetes.io/component: backend
+  annotations:
+    # Env vars are frozen at container start, so a rotated secret only lands
+    # after a restart. Stakater Reloader (gitops core/reloader) rolls this
+    # Deployment whenever a Secret it references changes.
+    reloader.stakater.com/auto: "true"
 spec:
   # One replica, deliberately: the media volume is ReadWriteOnce and the
   # SignalR hub holds in-memory connection state. Scaling out needs RWX plus a
   # SignalR backplane first.
   replicas: 1
+  # Surge one pod and keep the old one serving until the new one is ready, so
+  # a Reloader restart or an image bump costs no downtime. Safe with RWO only
+  # because the cluster is a single node: RWO is per node, not per pod.
+  # ponytail: a second node needs podAffinity pinning this to the PVC's node.
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       {{- include "lan-party.selectorLabels" . | nindent 6 }}
@@ -117,6 +129,11 @@ spec:
                   name: {{ $fullName }}-backend
                   key: {{ .envVar | quote }}
             {{- end }}
+          # The Service drops a terminating pod asynchronously; keep accepting
+          # requests until it has, instead of refusing them during a rollout.
+          lifecycle:
+            preStop:
+              sleep: { seconds: 5 }
           # TCP probes: neither app exposes a health endpoint yet. Swap these for
           # httpGet /health once one does. Kestrel binds only after
           # ApplyMigrations() returns, so startupProbe is what buys migrations
