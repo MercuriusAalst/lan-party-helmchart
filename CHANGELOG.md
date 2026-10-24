@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/MercuriusAalst/lan-party-helmchart/compare/lan-party-v2.0.0...lan-party-v2.0.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* roll pods on secret change without downtime or logouts ([#7](https://github.com/MercuriusAalst/lan-party-helmchart/issues/7)) ([50f0894](https://github.com/MercuriusAalst/lan-party-helmchart/commit/50f08948097030b2a2f8a530fdb487497d63649e))
+
 ## [2.0.0](https://github.com/MercuriusAalst/lan-party-helmchart/compare/lan-party-v1.0.1...lan-party-v2.0.0) (2026-10-08)
 
 
