@@ -90,6 +90,15 @@ needs more than a bigger `replicas` — RWX plus a SignalR backplane for the
 backend, sticky sessions at the tunnel for the frontend. The field is absent
 rather than present-and-misleading.
 
+**Restarts roll, they don't recreate.** Both Deployments surge a new pod and
+wait for it to be ready before stopping the old one, and Stakater Reloader
+triggers such a restart whenever a referenced Secret changes. For a moment two
+backend pods share the ReadWriteOnce media volume, which only works because the
+cluster has a single node. The new backend runs its migrations while the old
+one still serves, so a migration must not break the previous release.
+The frontend keeps its Data Protection keys on a small volume of its own, so a
+restart does not invalidate the auth cookie and sign everyone out.
+
 **The images live on GHCR.** `ghcr.io/mercuriusaalst/mercurius-{backend,frontend}`,
 pushed by each app repo with its own `GITHUB_TOKEN`. GHCR packages are
 **private by default** even when the source repo is public, and a private
